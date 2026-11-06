@@ -14,22 +14,22 @@ jobs:
       matrix:
         shell: [powershell, pwsh]
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
     steps:
       - uses: actions/checkout@v4
       - name: Install (${{ matrix.shell }})
-        shell: ${{ matrix.shell }}
         run: |
           $env:CCB_EXTRAS = "node"
           ./install.ps1
       - name: Verify in a fresh shell
-        shell: ${{ matrix.shell }}
         run: |
           $env:Path = [Environment]::GetEnvironmentVariable('Path','User') + ';' + [Environment]::GetEnvironmentVariable('Path','Machine')
           claude --version
           if ($LASTEXITCODE -ne 0) { exit 1 }
           if (-not [Environment]::GetEnvironmentVariable('CLAUDE_CODE_GIT_BASH_PATH','User')) { throw 'CLAUDE_CODE_GIT_BASH_PATH not set' }
       - name: Second run is idempotent
-        shell: ${{ matrix.shell }}
         run: ./install.ps1
 
   unix:
