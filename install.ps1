@@ -18,6 +18,7 @@ function Install-ClaudeCodeBootstrap {
     $ErrorActionPreference = 'Stop'
     $ProgressPreference = 'SilentlyContinue'   # Invoke-WebRequest is 10x slower with the progress bar in PS 5.1
 
+    $claudeOk = $false
     $script:Problems = New-Object System.Collections.Generic.List[string]
     $Channel = if ($env:CCB_CHANNEL) { $env:CCB_CHANNEL } else { 'stable' }
     $Extras  = @()
@@ -178,9 +179,15 @@ function Install-ClaudeCodeBootstrap {
         Ok "Already installed: $ClaudeExe (it auto-updates; run 'claude update' to force)"
     } else {
         try {
-            $code = Invoke-RemoteScript 'https://claude.ai/install.ps1' @($Channel)
+            $code = $null
+            for ($attempt = 1; $attempt -le 3; $attempt++) {
+                try { $code = Invoke-RemoteScript 'https://claude.ai/install.ps1' @($Channel) }
+                catch { Write-Host "  Download error: $($_.Exception.Message)" -ForegroundColor Yellow }
+                if (Test-Path $ClaudeExe) { break }
+                if ($attempt -lt 3) { Write-Host "  Retrying in 5 s (attempt $($attempt + 1)/3)..."; Start-Sleep -Seconds 5 }
+            }
             if (Test-Path $ClaudeExe) { Ok 'Claude Code installed' }
-            else { Fail "Official installer finished with code $code but $ClaudeExe is missing" }
+            else { Fail "Official installer failed 3 times (last exit code $code), $ClaudeExe is missing" }
         } catch {
             Fail "Claude Code install failed: $($_.Exception.Message)"
         }
@@ -201,7 +208,7 @@ function Install-ClaudeCodeBootstrap {
     Say 'Verification'
     if (Test-Path $ClaudeExe) {
         $v = (& $ClaudeExe --version 2>&1 | Out-String).Trim()
-        if ($LASTEXITCODE -eq 0) { Ok "claude --version: $v" } else { Fail "claude --version failed: $v" }
+        if ($LASTEXITCODE -eq 0) { Ok "claude --version: $v"; $claudeOk = $true } else { Fail "claude --version failed: $v" }
     }
     $g = Get-Command git -ErrorAction SilentlyContinue
     if ($g) { Ok ((& git --version) | Out-String).Trim() }
@@ -224,6 +231,15 @@ function Install-ClaudeCodeBootstrap {
     Write-Host "  Full log: $LogFile"
     Write-Host ''
     try { Stop-Transcript | Out-Null } catch { }
+
+    # 7. Start Claude Code ------------------------------------------------
+    # Skipped in CI, in a non-interactive session, or with $env:CCB_NO_LAUNCH = "1".
+    if ($claudeOk -and -not $env:CI -and $env:CCB_NO_LAUNCH -ne '1' -and [Environment]::UserInteractive -and -not [Console]::IsInputRedirected) {
+        Say "Starting Claude Code in $env:USERPROFILE (exit with /exit or Ctrl+C twice)"
+        Write-Host ''
+        Push-Location $env:USERPROFILE
+        try { & $ClaudeExe } finally { Pop-Location }
+    }
 }
 
 # Called on the last line, so a partially downloaded script does nothing.

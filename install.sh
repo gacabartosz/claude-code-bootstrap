@@ -120,11 +120,13 @@ main() {
     ok "Already installed: $CLAUDE_BIN (it auto-updates; run 'claude update' to force)"
   else
     [ "$MUSL" -eq 1 ] && export USE_BUILTIN_RIPGREP=0
-    if fetch https://claude.ai/install.sh | bash -s "$CHANNEL" && [ -x "$CLAUDE_BIN" ]; then
-      ok "Claude Code installed"
-    else
-      fail "Official Claude Code installer failed (details above)"
-    fi
+    for attempt in 1 2 3; do
+      fetch https://claude.ai/install.sh | bash -s "$CHANNEL"
+      [ -x "$CLAUDE_BIN" ] && break
+      [ "$attempt" -lt 3 ] && { echo "  Download failed, retrying in 5 s (attempt $((attempt + 1))/3)..."; sleep 5; }
+    done
+    if [ -x "$CLAUDE_BIN" ]; then ok "Claude Code installed"
+    else fail "Official Claude Code installer failed 3 times (details above)"; fi
   fi
 
   # 5. PATH and shell config ----------------------------------------------
@@ -173,9 +175,19 @@ main() {
   # 7. Verification ---------------------------------------------------------
   say "Verification"
   if [ -x "$CLAUDE_BIN" ]; then
-    if v="$("$CLAUDE_BIN" --version 2>&1)"; then ok "claude --version: $v"; else fail "claude --version failed: $v"; fi
+    if v="$("$CLAUDE_BIN" --version 2>&1)"; then ok "claude --version: $v"; CLAUDE_OK=1; else fail "claude --version failed: $v"; fi
   fi
   summary
+
+  # 8. Start Claude Code ----------------------------------------------------
+  # With 'curl | bash' stdin is the script itself, so Claude gets the keyboard
+  # straight from /dev/tty. Skipped in CI, without a terminal, or with CCB_NO_LAUNCH=1.
+  if [ "${CLAUDE_OK:-0}" = "1" ] && [ -z "${CI:-}" ] && [ "${CCB_NO_LAUNCH:-}" != "1" ] && ( : </dev/tty ) 2>/dev/null; then
+    say "Starting Claude Code in $HOME (exit with /exit or Ctrl+C twice)"
+    echo
+    cd "$HOME" 2>/dev/null || true
+    "$CLAUDE_BIN" </dev/tty >/dev/tty 2>/dev/tty
+  fi
 }
 
 summary() {

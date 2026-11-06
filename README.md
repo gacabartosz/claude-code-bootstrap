@@ -8,7 +8,7 @@ Jedna komenda na czystym komputerze i masz działające Claude Code. Bez uprawni
 | **macOS / Linux** | `curl -fsSL https://raw.githubusercontent.com/gacabartosz/claude-code-bootstrap/main/install.sh \| bash` |
 | Windows, bez PowerShella | pobierz `install.cmd` i kliknij dwa razy |
 
-Po instalacji otwórz **nowe** okno terminala, wejdź do folderu projektu i wpisz `claude`. Za pierwszym razem otworzy się przeglądarka do logowania.
+Na końcu instalacji Claude Code **uruchamia się sam** i prowadzi przez logowanie w przeglądarce. Później otwierasz nowe okno terminala, wchodzisz do folderu projektu i wpisujesz `claude`.
 
 ## Co robi skrypt
 
@@ -19,6 +19,9 @@ Po instalacji otwórz **nowe** okno terminala, wejdź do folderu projektu i wpis
 5. Instaluje Claude Code **oficjalnym instalatorem natywnym** (`claude.ai/install.ps1` / `install.sh`), kanał `stable`.
 6. Dopisuje `~/.local/bin` do PATH.
 7. Weryfikuje `claude --version`, wypisuje podsumowanie i ścieżkę do pełnego logu.
+8. Uruchamia `claude` (pomijane w CI, bez terminala albo z `CCB_NO_LAUNCH=1`).
+
+Pobieranie Claude Code ma 3 próby, bo na słabym łączu zdarza się zerwane połączenie.
 
 Skrypt można uruchamiać wiele razy. Pomija to, co już jest, i ponawia to, co się nie udało.
 
@@ -40,7 +43,7 @@ curl -fsSL https://raw.githubusercontent.com/gacabartosz/claude-code-bootstrap/m
 
 Dodatki: `node`, `python`, `uv`, `ripgrep`. Na Windows idą przez Scoop, na macOS i Linux przez [mise](https://mise.jdx.dev), w obu przypadkach do katalogu domowego.
 
-`CCB_SKIP_GIT=1` pomija instalację gita.
+`CCB_SKIP_GIT=1` pomija instalację gita. `CCB_NO_LAUNCH=1` nie uruchamia Claude na końcu.
 
 ## Gdy coś nie działa
 
